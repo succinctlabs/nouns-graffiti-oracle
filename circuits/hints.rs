@@ -44,7 +44,7 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for NounsGraffitiProposer
         let mut nouns_graffitis = response;
         nouns_graffitis = nouns_graffitis
             .into_iter()
-            .filter(|n| start_slot <= n.slot && n.slot < end_slot)
+            .filter(|n| start_slot <= n.slot && n.slot <= end_slot)
             .collect_vec();
         let mut proposer_ids = nouns_graffitis
             .iter()

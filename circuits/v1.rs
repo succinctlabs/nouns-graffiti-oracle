@@ -28,10 +28,10 @@ pub const DUMMY_PROPOSER_ID: u64 = 0;
 pub const NB_MAX_PROPOSERS: usize = 256;
 
 /// The number of blocks we iterate over in a single proof.
-pub const NB_BLOCKS: usize = 4;
+pub const NB_BLOCKS: usize = 128;
 
 /// The number of blocks we iterate over in a single map proof.
-pub const BATCH_SIZE: usize = 2;
+pub const BATCH_SIZE: usize = 64;
 
 /// The number of winners we return.
 pub const NB_WINNERS: usize = 1;
@@ -101,11 +101,11 @@ impl Circuit for NounsGraffitiOracle {
                             builder.constant::<BytesVariable<10>>(bytes!(NOGGLES_GRAFFITI));
                         let graffiti = builder.beacon_get_graffiti(block_roots[i]);
                         let mut goggles_found = builder._false();
-                        for i in 0..22 {
+                        for j in 0..22 {
                             let mut found = builder._true();
-                            for j in 0..10 {
-                                let graffiti_byte = graffiti.0[i + j];
-                                let goggles_byte = goggles[j];
+                            for k in 0..10 {
+                                let graffiti_byte = graffiti.0[j + k];
+                                let goggles_byte = goggles[k];
                                 let eq = builder.is_equal(graffiti_byte, goggles_byte);
                                 found = builder.and(found, eq);
                             }
@@ -114,10 +114,15 @@ impl Circuit for NounsGraffitiOracle {
 
                         // Accumulate the proposer index if the goggles exist is in the range of
                         // `start_slot` and `end_slot`.
-                        let one = builder.one::<Variable>();
                         let term = builder.sub(gamma, proposer_index.0);
-                        let within_range = builder.within_range(header.slot, start_slot, end_slot);
+                        let one = builder.one::<U64Variable>();
+                        let end_slot_plus_one = builder.add(end_slot, one);
+                        let within_range =
+                            builder.within_range(header.slot, start_slot, end_slot_plus_one);
+                        builder.watch(&within_range, "within_range");
+                        builder.watch(&goggles_found, "goggles_found");
                         let filter = builder.and(within_range, goggles_found);
+                        let one = builder.one::<Variable>();
                         let filtered_term = builder.select(filter, term, one);
                         filtered_acc = builder.mul(filtered_acc, filtered_term);
                     }
@@ -160,8 +165,6 @@ impl Circuit for NounsGraffitiOracle {
         }
 
         // Assert that the filtered accumulator equals the expected accumulator.
-        builder.watch(&result.0, "result.0");
-        builder.watch(&filtered_acc, "filtered_acc");
         builder.assert_is_equal(result.0, filtered_acc);
 
         // Permute the values with a random ordering based on `gamma`.
@@ -208,15 +211,17 @@ mod tests {
 
         // Generate input.
         let mut input = circuit.input();
-        input.evm_write::<U64Variable>(7458303);
-        input.evm_write::<U64Variable>(7458307);
+        input.evm_write::<U64Variable>(7458303); // inclusive
+        input.evm_write::<U64Variable>(7458306); // inclusive
         input.evm_write::<Bytes32Variable>(bytes32!(BLOCK_ROOT));
 
         // Generate the proof and verify.
         let (proof, mut output) = circuit.prove(&input);
         circuit.verify(&proof, &input, &output);
 
-        let winner = output.evm_read::<Bytes32Variable>();
-        println!("winner: {}", winner);
+        for _ in 0..NB_WINNERS {
+            let winner = output.evm_read::<Bytes32Variable>();
+            println!("winner: {:?}", winner);
+        }
     }
 }
