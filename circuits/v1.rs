@@ -29,6 +29,7 @@ pub const NB_MAX_PROPOSERS: usize = 256;
 
 /// The number of blocks we iterate over in a single proof.
 pub const NB_BLOCKS: usize = 128;
+// TODO: set to 8192 then ~250k
 
 /// The number of blocks we iterate over in a single map proof.
 pub const BATCH_SIZE: usize = 64;
@@ -48,6 +49,7 @@ impl Circuit for NounsGraffitiOracle {
         let block_root = builder.evm_read::<Bytes32Variable>();
 
         // Randomness.
+        // TODO: get randomness from somehwre better (onchain?)
         let gamma = builder.constant::<Variable>(L::Field::from_canonical_u64(7));
         let nonce = builder.constant::<U32Variable>(7);
 
@@ -76,6 +78,7 @@ impl Circuit for NounsGraffitiOracle {
                             start_offset,
                             end_offset,
                         );
+                    // TODO: change vercel to use latitude consenus nodes
 
                     // Prove that this is a valid chain of headers going from the newest header
                     // to the oldest header.
