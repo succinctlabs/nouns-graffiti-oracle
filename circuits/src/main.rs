@@ -208,6 +208,7 @@ impl Circuit for NounsGraffitiOracle {
     ) where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
     {
+        registry.register_hint::<NounsGraffitiProposersHint>();
         let id = MapReduceGenerator::<
             L,
             (
