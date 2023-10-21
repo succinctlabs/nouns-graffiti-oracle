@@ -4,7 +4,6 @@ out = "out"
 libs = ["lib"]
 solc_version = "0.8.16"
 
-# https://book.getfoundry.sh/reference/config/formatter#line_length
 [fmt]
 line_length = 100
 tab_width = 4

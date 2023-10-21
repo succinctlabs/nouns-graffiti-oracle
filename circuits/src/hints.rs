@@ -9,7 +9,7 @@ use plonky2x::prelude::{ArrayVariable, PlonkParameters};
 use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
 
-use crate::NB_MAX_PROPOSERS;
+use crate::{NB_BLOCKS, NB_MAX_PROPOSERS};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -31,6 +31,7 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for NounsGraffitiProposer
     fn hint(&self, input_stream: &mut ValueStream<L, D>, output_stream: &mut ValueStream<L, D>) {
         let start_slot = input_stream.read_value::<U64Variable>();
         let end_slot = input_stream.read_value::<U64Variable>();
+        let target_slot = input_stream.read_value::<U64Variable>();
         let endpoint = "https://api.nogglesgraffiti.wtf/slots";
         debug!("fetching nouns graffiti from {}", endpoint);
         let client = Client::new();
@@ -44,7 +45,12 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for NounsGraffitiProposer
         let mut nouns_graffitis = response;
         nouns_graffitis = nouns_graffitis
             .into_iter()
-            .filter(|n| start_slot <= n.slot && n.slot <= end_slot)
+            .filter(|n| {
+                start_slot <= n.slot
+                    && n.slot < end_slot
+                    && (target_slot - NB_BLOCKS as u64) < n.slot
+                    && n.block.is_some()
+            })
             .collect_vec();
         let mut proposer_ids = nouns_graffitis
             .iter()
