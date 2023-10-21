@@ -1,11 +1,15 @@
 {
+    "$schema": "https://raw.githubusercontent.com/succinctlabs/succinctx/main/assets/schema.json",
     "entrypoints": [
         {
             "name": "v1",
-            "framework": "plonky2",
+            "framework": "plonky2x",
             "baseDir": ".",
             "buildCommand": "mkdir -p build && cargo run --release --package circuits build && mv ./target/release/circuits ./build/circuits",
-            "proveCommand": "./build/circuits prove input.json"
+            "proveCommand": "./build/circuits prove input.json",
+            "requiredArtifacts": [
+                "circuits"
+            ]
         }
     ]
 }
