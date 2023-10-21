@@ -31,10 +31,10 @@ pub const DUMMY_WITHDRAWAL_CREDENTIALS: &str =
 pub const NB_MAX_PROPOSERS: usize = 64;
 
 /// The number of blocks we iterate over in a single proof.
-pub const NB_BLOCKS: usize = 4096;
+pub const NB_BLOCKS: usize = 8192;
 
 /// The number of blocks we iterate over in a single map proof.
-pub const BATCH_SIZE: usize = 64;
+pub const BATCH_SIZE: usize = 512;
 
 /// The number of winners we return.
 pub const NB_WINNERS: usize = 1;
