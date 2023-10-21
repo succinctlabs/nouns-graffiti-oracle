@@ -6,6 +6,7 @@ use itertools::Itertools;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2x::backend::circuit::{Circuit, PlonkParameters};
 use plonky2x::backend::function::Plonky2xFunction;
+use plonky2x::frontend::builder::permutation::RandomPermutationHint;
 use plonky2x::frontend::eth::beacon::vars::BeaconHeaderVariable;
 use plonky2x::frontend::extension::CubicExtensionVariable;
 use plonky2x::frontend::mapreduce::generator::MapReduceGenerator;
@@ -208,6 +209,7 @@ impl Circuit for NounsGraffitiOracle {
     ) where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
     {
+        registry.register_hint::<RandomPermutationHint<NB_MAX_PROPOSERS>>();
         registry.register_hint::<NounsGraffitiProposersHint>();
         let id = MapReduceGenerator::<
             L,
