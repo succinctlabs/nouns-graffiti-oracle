@@ -34,7 +34,7 @@ pub const NB_MAX_PROPOSERS: usize = 64;
 pub const NB_BLOCKS: usize = 8192;
 
 /// The number of blocks we iterate over in a single map proof.
-pub const BATCH_SIZE: usize = 512;
+pub const BATCH_SIZE: usize = 128;
 
 /// The number of winners we return.
 pub const NB_WINNERS: usize = 1;
