@@ -8,6 +8,7 @@ use plonky2x::backend::circuit::{Circuit, PlonkParameters};
 use plonky2x::backend::function::Plonky2xFunction;
 use plonky2x::frontend::eth::beacon::vars::BeaconHeaderVariable;
 use plonky2x::frontend::extension::CubicExtensionVariable;
+use plonky2x::frontend::mapreduce::generator::MapReduceGenerator;
 use plonky2x::frontend::uint::uint64::U64Variable;
 use plonky2x::frontend::vars::{SSZVariable, U32Variable, VariableStream};
 use plonky2x::prelude::{ArrayVariable, Bytes32Variable, BytesVariable, CircuitBuilder};
@@ -200,6 +201,53 @@ impl Circuit for NounsGraffitiOracle {
             );
             builder.evm_write(withdrawal_credentials);
         }
+    }
+
+    fn register_generators<L: PlonkParameters<D>, const D: usize>(
+        registry: &mut plonky2x::prelude::HintRegistry<L, D>,
+    ) where
+        <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
+    {
+        let id = MapReduceGenerator::<
+            L,
+            (
+                CubicExtensionVariable,
+                U64Variable,
+                U64Variable,
+                Bytes32Variable,
+            ),
+            U64Variable,
+            (
+                CubicExtensionVariable,
+                Bytes32Variable,
+                BeaconHeaderVariable,
+                Bytes32Variable,
+                BeaconHeaderVariable,
+            ),
+            Self,
+            BATCH_SIZE,
+            D,
+        >::id();
+        registry.register_simple::<MapReduceGenerator<
+            L,
+            (
+                CubicExtensionVariable,
+                U64Variable,
+                U64Variable,
+                Bytes32Variable,
+            ),
+            U64Variable,
+            (
+                CubicExtensionVariable,
+                Bytes32Variable,
+                BeaconHeaderVariable,
+                Bytes32Variable,
+                BeaconHeaderVariable,
+            ),
+            Self,
+            BATCH_SIZE,
+            D,
+        >>(id);
     }
 }
 
