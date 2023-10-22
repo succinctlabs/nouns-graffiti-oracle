@@ -38,20 +38,19 @@ interface ISuccinctGateway {
     function isCallback() external view returns (bool);
 }
 
-/// @title NounsOracleV1
 contract NounsOracleV1 {
     /// @notice The address of the gateway.
-    address public constant SUCCINCT_GATEWAY = 0x852a94F8309D445D27222eDb1E92A4E83DdDd2a8;
+    address public constant SUCCINCT_GATEWAY = 0xE304f6B116bE5e43424cEC36a5eFd0B642E0dC95;
 
     /// @notice The function id of the oracle.
     bytes32 public constant FUNCTION_ID =
         0xbae1b06917c6c241263d1672e6fdac1eaa0ecae80c63396e05de2346b4469ff5;
 
     /// @notice Number of blocks iterated over per proof.
-    uint16 public constant NB_BLOCKS_PER_PROOF = 8192;
+    uint64 public constant NB_BLOCKS_PER_PROOF = 131072;
 
     /// @notice Callback gas limit.
-    uint32 public constant CALLBACK_GAS_LIMIT = 100000;
+    uint32 public constant CALLBACK_GAS_LIMIT = 2000000;
 
     /// @notice Payout amount for prize.
     uint256 public payoutAmount;
@@ -59,8 +58,10 @@ contract NounsOracleV1 {
     /// @notice The light client.
     ILightClient public lightclient;
 
+    /// @notice The owner of the contract.
     address public owner;
 
+    /// @notice Whether the n'th raffle is completed.
     mapping(uint64 => bool) public raffleCompleted;
 
     uint64[19] public raffleBounds = [
