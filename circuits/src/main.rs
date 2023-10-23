@@ -30,7 +30,7 @@ pub const DUMMY_WITHDRAWAL_CREDENTIALS: &str =
     "0x0000000000000000000000000000000000000000000000000000000000000000";
 
 /// The maximum number of proposers that can be returned by the witness.
-pub const NB_MAX_PROPOSERS: usize = 64;
+pub const NB_MAX_PROPOSERS: usize = 1024;
 
 /// The number of blocks we iterate over in a single proof.
 pub const NB_BLOCKS: usize = 131072;
@@ -39,7 +39,7 @@ pub const NB_BLOCKS: usize = 131072;
 pub const BATCH_SIZE: usize = 64;
 
 /// The number of winners we return.
-pub const NB_WINNERS: usize = 1;
+pub const NB_WINNERS: usize = 10;
 
 impl Circuit for NounsGraffitiOracle {
     fn define<L: PlonkParameters<D>, const D: usize>(builder: &mut CircuitBuilder<L, D>)

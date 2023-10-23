@@ -39,18 +39,17 @@ interface ISuccinctGateway {
 }
 
 contract NounsOracleV1 {
-    /// @notice The address of the gateway.
-    address public constant SUCCINCT_GATEWAY = 0xE304f6B116bE5e43424cEC36a5eFd0B642E0dC95;
-
-    /// @notice The function id of the oracle.
-    bytes32 public constant FUNCTION_ID =
-        0xbae1b06917c6c241263d1672e6fdac1eaa0ecae80c63396e05de2346b4469ff5;
-
     /// @notice Number of blocks iterated over per proof.
     uint64 public constant NB_BLOCKS_PER_PROOF = 131072;
 
     /// @notice Callback gas limit.
     uint32 public constant CALLBACK_GAS_LIMIT = 2000000;
+
+    /// @notice The address of the gateway.
+    address public gateway;
+
+    /// @notice The function id of the oracle.
+    bytes32 public functionId;
 
     /// @notice Payout amount for prize.
     uint256 public payoutAmount;
@@ -59,7 +58,7 @@ contract NounsOracleV1 {
     ILightClient public lightclient;
 
     /// @notice The owner of the contract.
-    address public owner;
+    address payable public owner;
 
     /// @notice Whether the n'th raffle is completed.
     mapping(uint64 => bool) public raffleCompleted;
@@ -95,10 +94,17 @@ contract NounsOracleV1 {
     );
     event RaffleFulfilled(uint64 indexed raffleIdx);
 
-    constructor(address _lightClient, address _owner, uint256 _payoutAmount) {
+    constructor(address _gateway, bytes32 _functionId, address _lightClient, address _owner, uint256 _payoutAmount) {
+        gateway = _gateway;
+        functionId = _functionId;
         lightclient = ILightClient(_lightClient);
-        owner = _owner;
+        owner = payable(_owner);
         payoutAmount = _payoutAmount;
+    }
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Not the contract owner");
+        _;
     }
 
     function readBytes32Array(bytes memory input) public pure returns (bytes32[10] memory) {
@@ -119,10 +125,7 @@ contract NounsOracleV1 {
         return output;
     }
 
-    function startRaffle(uint64 raffleIdx, uint64 targetSlot) external {
-        // Only the owner can start the raffle.
-        require(msg.sender == owner);
-
+    function startRaffle(uint64 raffleIdx, uint64 targetSlot) onlyOwner external {
         // Check that the raffle is not completed.
         require(!raffleCompleted[raffleIdx], "NounsGraffitiRaffle: raffle already completed");
 
@@ -153,8 +156,8 @@ contract NounsOracleV1 {
         uint32 shuffleSeed = uint32(uint256(seed));
 
         // Request for the proof and callback.
-        ISuccinctGateway(SUCCINCT_GATEWAY).requestCallback(
-            FUNCTION_ID,
+        ISuccinctGateway(gateway).requestCallback(
+            functionId,
             abi.encodePacked(
                 startSlot, endSlot, targetSlot, blockRoot, gammaA, gammaB, gammaC, shuffleSeed
             ),
@@ -168,7 +171,7 @@ contract NounsOracleV1 {
 
     function endRaffle(bytes memory output, bytes memory context) public {
         // Check that the callback is coming from the gateway.
-        require(msg.sender == SUCCINCT_GATEWAY && ISuccinctGateway(SUCCINCT_GATEWAY).isCallback());
+        require(msg.sender == gateway && ISuccinctGateway(gateway).isCallback());
 
         // Decode the context and check that the raffle is not yet completed.
         uint64 raffleIdx = abi.decode(context, (uint64));
@@ -194,4 +197,21 @@ contract NounsOracleV1 {
 
         emit RaffleFulfilled(raffleIdx);
     }
+
+    /// @notice Restore funds to the owner in case of issue.
+    function restore() onlyOwner external {
+        owner.transfer(address(this).balance);
+    }
+
+    function upgradeGateway(address _gateway) onlyOwner external {
+        gateway = _gateway;
+    }
+
+    function upgradeFunctionId(bytes32 _functionId) onlyOwner external {
+        functionId = _functionId;
+    }
+
+    fallback() external payable {}
+
+    receive() external payable {}
 }
