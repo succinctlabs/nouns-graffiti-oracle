@@ -38,9 +38,9 @@ interface ISuccinctGateway {
     function isCallback() external view returns (bool);
 }
 
-contract NounsOracleV1 {
+contract NounsRaffle {
     /// @notice Number of blocks iterated over per proof.
-    uint64 public constant NB_BLOCKS_PER_PROOF = 131072;
+    uint64 public constant NB_BLOCKS_PER_PROOF = 262144;
 
     /// @notice Callback gas limit.
     uint32 public constant CALLBACK_GAS_LIMIT = 2000000;
@@ -127,20 +127,24 @@ contract NounsOracleV1 {
 
     function startRaffle(uint64 raffleIdx, uint64 targetSlot) onlyOwner external {
         // Check that the raffle is not completed.
-        require(!raffleCompleted[raffleIdx], "NounsGraffitiRaffle: raffle already completed");
+        require(!raffleCompleted[raffleIdx], "NounsRaffle: raffle already completed");
 
         // Grab the start and end slots for the raffle.
         uint64 startSlot = raffleBounds[raffleIdx];
-        uint64 endSlot = raffleBounds[raffleIdx];
+        uint64 endSlot = raffleBounds[raffleIdx + 1];
         require(
             targetSlot - startSlot < NB_BLOCKS_PER_PROOF,
-            "NounsGraffitiRaffle: target slot out of range"
+            "NounsRaffle: target slot out of range"
         );
 
         // Grab the latest header from the light client.
-        uint64 head = uint64(lightclient.head());
-        bytes32 blockRoot = lightclient.headers(head);
-        require(head >= endSlot, "NounsGraffitiRaffle: head is before end slot");
+        
+        // uint64 head = uint64(lightclient.head());
+        // bytes32 blockRoot = lightclient.headers(head);
+        // require(head >= endSlot, "NounsRaffle: head is before end slot");
+
+        // TODO: FIX
+        bytes32 blockRoot = 0x7a75d5502991b79c5ab31780e575d257335549a0a8fc02eb036ecd67f490be66;
 
         // Compute pseudorandomness. We use the block hash of the previous block as the seed. This
         // is sufficient for our purposes, since we can assume the requester is not adversarial.
@@ -171,6 +175,7 @@ contract NounsOracleV1 {
 
     function endRaffle(bytes memory output, bytes memory context) public {
         // Check that the callback is coming from the gateway.
+        require(tx.origin == owner, "NounsRaffle: proof not from approved prover");
         require(msg.sender == gateway && ISuccinctGateway(gateway).isCallback());
 
         // Decode the context and check that the raffle is not yet completed.
@@ -209,6 +214,10 @@ contract NounsOracleV1 {
 
     function upgradeFunctionId(bytes32 _functionId) onlyOwner external {
         functionId = _functionId;
+    }
+
+    function restartRaffle(uint64 raffleIdx) onlyOwner external {
+        raffleCompleted[raffleIdx] = false;
     }
 
     fallback() external payable {}

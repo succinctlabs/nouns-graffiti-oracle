@@ -1,5 +1,5 @@
 source ../.env
-forge create src/LidoOracleV1.sol:LidoOracleV1 \
+forge create src/NounsRaffle.s.sol:NounsRaffle.s.sol \
     --rpc-url $RPC_5 \
     --private-key $PRIVATE_KEY \
     --verify \
