@@ -2,15 +2,9 @@
 pragma solidity ^0.8.16;
 
 interface ILightClient {
-    function consistent() external view returns (bool);
-
     function head() external view returns (uint256);
 
     function headers(uint256 slot) external view returns (bytes32);
-
-    function executionStateRoots(uint256 slot) external view returns (bytes32);
-
-    function timestamps(uint256 slot) external view returns (uint256);
 }
 
 interface ISuccinctGateway {
@@ -30,10 +24,10 @@ interface ISuccinctGateway {
         uint32 _gasLimit
     ) external payable;
 
-    function verifiedCall(bytes32 _functionId, bytes memory _input)
-        external
-        view
-        returns (bytes memory);
+    function verifiedCall(
+        bytes32 _functionId,
+        bytes memory _input
+    ) external view returns (bytes memory);
 
     function isCallback() external view returns (bool);
 }
@@ -55,10 +49,13 @@ contract NounsRaffle {
     uint256 public payoutAmount;
 
     /// @notice The light client.
-    ILightClient public lightclient;
+    ILightClient public lightClient;
 
     /// @notice The owner of the contract.
     address payable public owner;
+
+    /// @notice The prover.
+    address public prover;
 
     /// @notice Whether the n'th raffle is completed.
     mapping(uint64 => bool) public raffleCompleted;
@@ -87,18 +84,30 @@ contract NounsRaffle {
 
     event RaffleRequest(uint64 indexed raffleIdx);
     event RaffleWinnerSkipped(
-        uint64 indexed raffleIdx, uint256 indexed i, bytes32 indexed withdrawalAddress
+        uint64 indexed raffleIdx,
+        uint256 indexed i,
+        bytes32 indexed withdrawalAddress
     );
     event RaffleWinner(
-        uint64 indexed raffleIdx, uint256 indexed i, bytes32 indexed withdrawalAddress
+        uint64 indexed raffleIdx,
+        uint256 indexed i,
+        bytes32 indexed withdrawalAddress
     );
     event RaffleFulfilled(uint64 indexed raffleIdx);
 
-    constructor(address _gateway, bytes32 _functionId, address _lightClient, address _owner, uint256 _payoutAmount) {
+    constructor(
+        address _gateway,
+        bytes32 _functionId,
+        address _lightClient,
+        address _owner,
+        address _prover,
+        uint256 _payoutAmount
+    ) {
         gateway = _gateway;
         functionId = _functionId;
-        lightclient = ILightClient(_lightClient);
+        lightClient = ILightClient(_lightClient);
         owner = payable(_owner);
+        prover = _prover;
         payoutAmount = _payoutAmount;
     }
 
@@ -107,7 +116,9 @@ contract NounsRaffle {
         _;
     }
 
-    function readBytes32Array(bytes memory input) public pure returns (bytes32[10] memory) {
+    function readBytes32Array(
+        bytes memory input
+    ) public pure returns (bytes32[10] memory) {
         require(input.length == 320, "Input must be 320 bytes in length");
         bytes32[10] memory output;
         assembly {
@@ -125,9 +136,15 @@ contract NounsRaffle {
         return output;
     }
 
-    function startRaffle(uint64 raffleIdx, uint64 targetSlot) onlyOwner external {
+    function startRaffle(
+        uint64 raffleIdx,
+        uint64 targetSlot
+    ) external onlyOwner {
         // Check that the raffle is not completed.
-        require(!raffleCompleted[raffleIdx], "NounsRaffle: raffle already completed");
+        require(
+            !raffleCompleted[raffleIdx],
+            "NounsRaffle: raffle already completed"
+        );
 
         // Grab the start and end slots for the raffle.
         uint64 startSlot = raffleBounds[raffleIdx];
@@ -138,7 +155,7 @@ contract NounsRaffle {
         );
 
         // Grab the latest header from the light client.
-        
+
         // uint64 head = uint64(lightclient.head());
         // bytes32 blockRoot = lightclient.headers(head);
         // require(head >= endSlot, "NounsRaffle: head is before end slot");
@@ -163,7 +180,14 @@ contract NounsRaffle {
         ISuccinctGateway(gateway).requestCallback(
             functionId,
             abi.encodePacked(
-                startSlot, endSlot, targetSlot, blockRoot, gammaA, gammaB, gammaC, shuffleSeed
+                startSlot,
+                endSlot,
+                targetSlot,
+                blockRoot,
+                gammaA,
+                gammaB,
+                gammaC,
+                shuffleSeed
             ),
             abi.encode(raffleIdx),
             this.endRaffle.selector,
@@ -175,8 +199,13 @@ contract NounsRaffle {
 
     function endRaffle(bytes memory output, bytes memory context) public {
         // Check that the callback is coming from the gateway.
-        require(tx.origin == owner, "NounsRaffle: proof not from approved prover");
-        require(msg.sender == gateway && ISuccinctGateway(gateway).isCallback());
+        require(
+            tx.origin == prover,
+            "NounsRaffle: proof not from approved prover"
+        );
+        require(
+            msg.sender == gateway && ISuccinctGateway(gateway).isCallback()
+        );
 
         // Decode the context and check that the raffle is not yet completed.
         uint64 raffleIdx = abi.decode(context, (uint64));
@@ -189,9 +218,13 @@ contract NounsRaffle {
         // Distribute funds.
         for (uint256 i = 0; i < winners.length; i++) {
             bytes20 withdrawalAddressBytes = bytes20(winners[i] << 96);
-            address withdrawalAddress = address(uint160(withdrawalAddressBytes));
+            address withdrawalAddress = address(
+                uint160(withdrawalAddressBytes)
+            );
             if (winners[i] != bytes32(0)) {
-                (bool success,) = withdrawalAddress.call{value: payoutAmount}("");
+                (bool success, ) = withdrawalAddress.call{value: payoutAmount}(
+                    ""
+                );
                 if (!success) {
                     emit RaffleWinnerSkipped(raffleIdx, i, winners[i]);
                 } else {
@@ -204,19 +237,23 @@ contract NounsRaffle {
     }
 
     /// @notice Restore funds to the owner in case of issue.
-    function restore() onlyOwner external {
+    function restore() external onlyOwner {
         owner.transfer(address(this).balance);
     }
 
-    function upgradeGateway(address _gateway) onlyOwner external {
+    function upgradeGateway(address _gateway) external onlyOwner {
         gateway = _gateway;
     }
 
-    function upgradeFunctionId(bytes32 _functionId) onlyOwner external {
+    function upgradeFunctionId(bytes32 _functionId) external onlyOwner {
         functionId = _functionId;
     }
 
-    function restartRaffle(uint64 raffleIdx) onlyOwner external {
+    function upgradeLightClient(address _lightClient) external onlyOwner {
+        lightClient = ILightClient(_lightClient);
+    }
+
+    function restartRaffle(uint64 raffleIdx) external onlyOwner {
         raffleCompleted[raffleIdx] = false;
     }
 
