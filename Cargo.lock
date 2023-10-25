@@ -2705,7 +2705,7 @@ source = "git+https://github.com/mir-protocol/plonky2.git#44af80f244e7b416d05dd8
 [[package]]
 name = "plonky2x"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/succinctx.git?branch=john/nouns#0fe9525cdbb1f3ed8fd44a893f543b2f487f4809"
+source = "git+https://github.com/succinctlabs/succinctx.git?branch=john/nouns#d6203a930baf66edde79092a4896aeda57b0ebd9"
 dependencies = [
  "anyhow",
  "array-macro",
@@ -2747,7 +2747,7 @@ dependencies = [
 [[package]]
 name = "plonky2x-derive"
 version = "0.1.0"
-source = "git+https://github.com/succinctlabs/succinctx.git?branch=john/nouns#0fe9525cdbb1f3ed8fd44a893f543b2f487f4809"
+source = "git+https://github.com/succinctlabs/succinctx.git?branch=john/nouns#d6203a930baf66edde79092a4896aeda57b0ebd9"
 dependencies = [
  "proc-macro2",
  "quote",
