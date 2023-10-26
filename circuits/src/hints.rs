@@ -56,6 +56,8 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for NounsGraffitiProposer
             .iter()
             .map(|n| n.proposer_id as u32)
             .collect_vec();
+        assert!(proposer_ids.len() < NB_MAX_PROPOSERS);
+        debug!("nouns graffiti proposer ids: {:?}", proposer_ids);
         proposer_ids.resize(NB_MAX_PROPOSERS, 0);
         output_stream.write_value::<ArrayVariable<U32Variable, NB_MAX_PROPOSERS>>(proposer_ids);
     }

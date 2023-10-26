@@ -7,6 +7,7 @@ use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2x::backend::circuit::{Circuit, PlonkParameters};
 use plonky2x::backend::function::Plonky2xFunction;
 use plonky2x::frontend::builder::permutation::RandomPermutationHint;
+use plonky2x::frontend::builder::watch::WatchGenerator;
 use plonky2x::frontend::eth::beacon::vars::BeaconHeaderVariable;
 use plonky2x::frontend::extension::CubicExtensionVariable;
 use plonky2x::frontend::mapreduce::generator::MapReduceGenerator;
@@ -33,7 +34,7 @@ pub const DUMMY_WITHDRAWAL_CREDENTIALS: &str =
 pub const NB_MAX_PROPOSERS: usize = 1024;
 
 /// The number of blocks we iterate over in a single proof.
-pub const NB_BLOCKS: usize = 131072;
+pub const NB_BLOCKS: usize = 32768;
 
 /// The number of blocks we iterate over in a single map proof.
 pub const BATCH_SIZE: usize = 64;
@@ -169,6 +170,7 @@ impl Circuit for NounsGraffitiOracle {
         input_stream.write(&target_slot);
         let output = builder.hint(input_stream, NounsGraffitiProposersHint {});
         let proposer_ids = output.read::<ArrayVariable<U32Variable, NB_MAX_PROPOSERS>>(builder);
+        builder.watch(&proposer_ids, "witnessed_proposer_ids");
 
         // Recompute the filtered accumulator and assert that it equals the expected accumulator.
         let dummy = builder.constant::<U32Variable>(DUMMY_PROPOSER_ID as u32);
@@ -209,6 +211,12 @@ impl Circuit for NounsGraffitiOracle {
     ) where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
     {
+        let generator_id =
+            WatchGenerator::<L, D, ArrayVariable<U32Variable, NB_MAX_PROPOSERS>>::id();
+        registry
+            .register_simple::<WatchGenerator<L, D, ArrayVariable<U32Variable, NB_MAX_PROPOSERS>>>(
+                generator_id,
+            );
         registry.register_hint::<RandomPermutationHint<NB_MAX_PROPOSERS>>();
         registry.register_hint::<NounsGraffitiProposersHint>();
         let id = MapReduceGenerator::<

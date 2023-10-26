@@ -8,11 +8,19 @@ contract RequestUpdateScript is Script {
     function run() public {
         vm.startBroadcast();
         address gateway = 0xE304f6B116bE5e43424cEC36a5eFd0B642E0dC95;
-        bytes32 functionId = 0x684d0904e20d716645f5303233212aac013ecb51dc6ddad99616163f0fe5c78a;
+        bytes32 functionId = 0x24d1fc2584b95d0e022f4b300af967985ae8c62ddae1eb7e64d0c820b8e333ec;
         address lightclient = address(0);
         address owner = 0xDEd0000E32f8F40414d3ab3a830f735a3553E18e;
+        address prover = owner;
         uint256 payoutAmount = 0;
-        NounsRaffle raffle = new NounsRaffle(gateway, functionId, lightclient, owner, payoutAmount);
+        NounsRaffle raffle = new NounsRaffle(
+            gateway,
+            functionId,
+            lightclient,
+            owner,
+            prover,
+            payoutAmount
+        );
         vm.stopBroadcast();
         uint64 raffleIdx = 0;
         uint64 targetSlot = 6339600;
