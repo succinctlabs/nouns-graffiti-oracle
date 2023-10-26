@@ -36,6 +36,7 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for NounsGraffitiProposer
         let client = Client::new();
         let response: Vec<NounsGraffiti> = client
             .get(endpoint)
+            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
             .timeout(Duration::new(60, 0))
             .send()
             .unwrap()
@@ -71,6 +72,7 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for NounsGraffitiProposer
         let client = Client::new();
         let response: Vec<NounsGraffiti> = client
             .get(endpoint)
+            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
             .timeout(Duration::new(60, 0))
             .send()
             .unwrap()

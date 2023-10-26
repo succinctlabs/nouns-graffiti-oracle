@@ -60,6 +60,7 @@ contract NounsRaffle {
     /// @notice Whether the n'th raffle is completed.
     mapping(uint64 => bool) public raffleCompleted;
 
+    /// @notice The raffle bounds.
     uint64[19] public raffleBounds = [
         6123599,
         6339599,

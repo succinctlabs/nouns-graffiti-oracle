@@ -295,7 +295,7 @@ mod tests {
     #[test]
     fn test_circuit() {
         env::set_var("RUST_LOG", "debug");
-        env::set_var("CONSENSUS_RPC_1", "http://localhost:3000");
+        env::set_var("CONSENSUS_RPC_1", "https://beaconapi.succinct.xyz");
         env_logger::try_init().unwrap_or_default();
 
         let mut builder = CircuitBuilder::<L, D>::new();
