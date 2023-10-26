@@ -23,7 +23,6 @@ mod hints;
 #[derive(Debug, Clone)]
 struct NounsGraffitiOracle;
 
-// 0x47616c616374696361204c4820616e64204765746820e28c90e297a82de297a8
 /// The noggles graffiti ("⌐◨-◨") encoded in bytes.
 pub const NOGGLES_GRAFFITI: &str = "0xe28c90e297a82de297a8";
 
@@ -37,7 +36,7 @@ pub const DUMMY_WITHDRAWAL_CREDENTIALS: &str =
 pub const NB_MAX_PROPOSERS: usize = 1024;
 
 /// The number of blocks we iterate over in a single proof.
-pub const NB_BLOCKS: usize = 32768;
+pub const NB_BLOCKS: usize = 262144;
 
 /// The number of blocks we iterate over in a single map proof.
 pub const BATCH_SIZE: usize = 64;
