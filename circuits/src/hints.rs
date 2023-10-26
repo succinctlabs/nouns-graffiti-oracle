@@ -31,7 +31,7 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for NounsGraffitiProposer
         let slot = input_stream.read_value::<U64Variable>();
         let proposer_id = input_stream.read_value::<U32Variable>();
         let graffiti_found = input_stream.read_value::<BoolVariable>();
-        let endpoint = "https://api.nogglesgraffiti.wtf/slots";
+        let endpoint = "https://dh0fmtfea73zh.cloudfront.net/slots";
         debug!("fetching nouns graffiti from {}", endpoint);
         let client = Client::new();
         let response: Vec<NounsGraffiti> = client
@@ -66,7 +66,7 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for NounsGraffitiProposer
         let start_slot = input_stream.read_value::<U64Variable>();
         let end_slot = input_stream.read_value::<U64Variable>();
         let target_slot = input_stream.read_value::<U64Variable>();
-        let endpoint = "https://api.nogglesgraffiti.wtf/slots";
+        let endpoint = "https://dh0fmtfea73zh.cloudfront.net/slots";
         debug!("fetching nouns graffiti from {}", endpoint);
         let client = Client::new();
         let response: Vec<NounsGraffiti> = client
