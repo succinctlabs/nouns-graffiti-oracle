@@ -13,7 +13,7 @@ use plonky2x::frontend::extension::CubicExtensionVariable;
 use plonky2x::frontend::mapreduce::generator::MapReduceGenerator;
 use plonky2x::frontend::uint::uint64::U64Variable;
 use plonky2x::frontend::vars::{SSZVariable, U32Variable, VariableStream};
-use plonky2x::prelude::{ArrayVariable, Bytes32Variable, BytesVariable, CircuitBuilder};
+use plonky2x::prelude::{ArrayVariable, Bytes32Variable, BytesVariable, CircuitBuilder, Variable};
 use plonky2x::utils::{bytes, bytes32};
 
 mod hints;
@@ -34,7 +34,7 @@ pub const DUMMY_WITHDRAWAL_CREDENTIALS: &str =
 pub const NB_MAX_PROPOSERS: usize = 1024;
 
 /// The number of blocks we iterate over in a single proof.
-pub const NB_BLOCKS: usize = 32768;
+pub const NB_BLOCKS: usize = 8192;
 
 /// The number of blocks we iterate over in a single map proof.
 pub const BATCH_SIZE: usize = 64;
@@ -141,6 +141,11 @@ impl Circuit for NounsGraffitiOracle {
                     let filter = builder.and(within_range, goggles_found);
                     let filtered_term = builder.select(filter, term, one);
                     filtered_acc = builder.mul(filtered_acc, filtered_term);
+
+                    let zero_variable = builder.zero::<Variable>();
+                    let masked_proposer_index =
+                        builder.select(filter, proposer_index.0, zero_variable);
+                    builder.watch(&masked_proposer_index, "masked_proposer_index");
                 }
 
                 // Return the auxiliary information needed during the reduce step.

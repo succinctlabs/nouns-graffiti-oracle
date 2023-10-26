@@ -8,7 +8,7 @@ contract RequestUpdateScript is Script {
     function run() public {
         vm.startBroadcast();
         address gateway = 0xE304f6B116bE5e43424cEC36a5eFd0B642E0dC95;
-        bytes32 functionId = 0x24d1fc2584b95d0e022f4b300af967985ae8c62ddae1eb7e64d0c820b8e333ec;
+        bytes32 functionId = 0x41141cf200e2413fd534163c3fd72c7d485ddfc099d414371a5b3d1abc8cf51c;
         address lightclient = address(0);
         address owner = 0xDEd0000E32f8F40414d3ab3a830f735a3553E18e;
         address prover = owner;
