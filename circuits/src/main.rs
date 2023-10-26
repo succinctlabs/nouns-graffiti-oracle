@@ -1,7 +1,7 @@
 //! Nouns Graffiti Oracle.
 #![allow(clippy::needless_range_loop)]
 
-use hints::NounsGraffitiProposersHint;
+use hints::{NounsGraffitiProposerCheckHint, NounsGraffitiProposersHint};
 use itertools::Itertools;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2x::backend::circuit::{Circuit, PlonkParameters};
@@ -13,7 +13,9 @@ use plonky2x::frontend::extension::CubicExtensionVariable;
 use plonky2x::frontend::mapreduce::generator::MapReduceGenerator;
 use plonky2x::frontend::uint::uint64::U64Variable;
 use plonky2x::frontend::vars::{SSZVariable, U32Variable, VariableStream};
-use plonky2x::prelude::{ArrayVariable, Bytes32Variable, BytesVariable, CircuitBuilder, Variable};
+use plonky2x::prelude::{
+    ArrayVariable, BoolVariable, Bytes32Variable, BytesVariable, CircuitBuilder,
+};
 use plonky2x::utils::{bytes, bytes32};
 
 mod hints;
@@ -142,10 +144,13 @@ impl Circuit for NounsGraffitiOracle {
                     let filtered_term = builder.select(filter, term, one);
                     filtered_acc = builder.mul(filtered_acc, filtered_term);
 
-                    let zero_variable = builder.zero::<Variable>();
-                    let masked_proposer_index =
-                        builder.select(filter, proposer_index.0, zero_variable);
-                    builder.watch(&masked_proposer_index, "masked_proposer_index");
+                    // Sanity check.
+                    let mut input_stream = VariableStream::new();
+                    input_stream.write(&header.slot);
+                    input_stream.write(&proposer_index);
+                    input_stream.write(&goggles_found);
+                    let output = builder.hint(input_stream, NounsGraffitiProposerCheckHint {});
+                    output.read::<BoolVariable>(builder);
                 }
 
                 // Return the auxiliary information needed during the reduce step.
@@ -224,6 +229,7 @@ impl Circuit for NounsGraffitiOracle {
             );
         registry.register_hint::<RandomPermutationHint<NB_MAX_PROPOSERS>>();
         registry.register_hint::<NounsGraffitiProposersHint>();
+        registry.register_hint::<NounsGraffitiProposerCheckHint>();
         let id = MapReduceGenerator::<
             L,
             (
