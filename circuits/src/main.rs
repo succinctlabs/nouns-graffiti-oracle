@@ -23,6 +23,7 @@ mod hints;
 #[derive(Debug, Clone)]
 struct NounsGraffitiOracle;
 
+// 0x47616c616374696361204c4820616e64204765746820e28c90e297a82de297a8
 /// The noggles graffiti ("⌐◨-◨") encoded in bytes.
 pub const NOGGLES_GRAFFITI: &str = "0xe28c90e297a82de297a8";
 
@@ -123,7 +124,7 @@ impl Circuit for NounsGraffitiOracle {
                     let goggles = builder.constant::<BytesVariable<10>>(bytes!(NOGGLES_GRAFFITI));
                     let graffiti = builder.beacon_get_graffiti(block_roots[i]);
                     let mut goggles_found = builder._false();
-                    for j in 0..22 {
+                    for j in 0..23 {
                         let mut found = builder._true();
                         for k in 0..10 {
                             let graffiti_byte = graffiti.0[j + k];
