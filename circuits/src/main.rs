@@ -33,10 +33,10 @@ pub const DUMMY_WITHDRAWAL_CREDENTIALS: &str =
     "0x0000000000000000000000000000000000000000000000000000000000000000";
 
 /// The maximum number of proposers that can be returned by the witness.
-pub const NB_MAX_PROPOSERS: usize = 262144;
+pub const NB_MAX_PROPOSERS: usize = 1024;
 
 /// The number of blocks we iterate over in a single proof.
-pub const NB_BLOCKS: usize = 128;
+pub const NB_BLOCKS: usize = 262144;
 
 /// The number of blocks we iterate over in a single map proof.
 pub const BATCH_SIZE: usize = 64;
