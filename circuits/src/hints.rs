@@ -1,16 +1,15 @@
+use std::env;
 use std::time::Duration;
 
-use itertools::Itertools;
-use log::{debug, info};
+use log::debug;
 use plonky2x::frontend::hint::simple::hint::Hint;
 use plonky2x::frontend::uint::uint64::U64Variable;
 use plonky2x::frontend::vars::{U32Variable, ValueStream};
-use plonky2x::prelude::{ArrayVariable, BoolVariable, PlonkParameters};
-use plonky2x::utils::eth::beacon::BeaconClient;
+use plonky2x::prelude::{ArrayVariable, BoolVariable, Bytes32Variable, PlonkParameters};
 use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
 
-use crate::{NB_BLOCKS, NB_MAX_PROPOSERS};
+use crate::NB_MAX_PROPOSERS;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -26,98 +25,69 @@ struct NounsGraffiti {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NounsGraffitiProposerCheckHint;
-impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for NounsGraffitiProposerCheckHint {
-    fn hint(&self, input_stream: &mut ValueStream<L, D>, output_stream: &mut ValueStream<L, D>) {
-        let start_slot = input_stream.read_value::<U64Variable>();
-        let end_slot = input_stream.read_value::<U64Variable>();
-        let slot = input_stream.read_value::<U64Variable>();
-        let proposer_id = input_stream.read_value::<U32Variable>();
-        let graffiti_found = input_stream.read_value::<BoolVariable>();
-        let within_range = input_stream.read_value::<BoolVariable>();
-        let filter = input_stream.read_value::<BoolVariable>();
+pub struct NounsGraffitiResetHint;
 
-        if filter {
-            info!("ACCUMULATING PROPOSER ID {} FOR SLOT {}", proposer_id, slot);
-        }
-
-        let endpoint = "https://dh0fmtfea73zh.cloudfront.net/slots";
-        debug!("fetching nouns graffiti from {}", endpoint);
+impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for NounsGraffitiResetHint {
+    fn hint(&self, input_stream: &mut ValueStream<L, D>, _: &mut ValueStream<L, D>) {
+        let _ = input_stream.read_value::<Bytes32Variable>();
+        let rpc_url = env::var("CONSENSUS_RPC_1").unwrap();
+        let endpoint = format!("{}/api/integrations/nouns/reset", rpc_url);
+        debug!("resetting nouns graffiti at {}", endpoint);
         let client = Client::new();
-        let response: Vec<NounsGraffiti> = client
-            .get(endpoint)
-            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+        let response = client
+            .post(endpoint)
             .timeout(Duration::new(60, 0))
             .send()
-            .unwrap()
-            .json()
             .unwrap();
-        output_stream.write_value::<BoolVariable>(false);
-        let mut sanity = false;
-        for i in 0..response.len() {
-            if response[i].slot == slot {
-                assert_eq!(
-                    response[i].proposer_id, proposer_id as u64,
-                    "proposer id mismatch"
-                );
-                sanity = true;
-            }
+        if response.status() != 200 {
+            panic!("failed to reset nouns graffiti");
         }
-        if graffiti_found != sanity {
-            panic!("graffiti found mismatch for {} and {}", slot, proposer_id);
-        }
-        let within_range_ans = start_slot <= slot && slot < end_slot;
-        assert_eq!(within_range, within_range_ans, "within range mismatch");
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NounsGraffitiProposersHint;
+pub struct NounsGraffitiPushHint;
 
-impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for NounsGraffitiProposersHint {
+impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for NounsGraffitiPushHint {
+    fn hint(&self, input_stream: &mut ValueStream<L, D>, _: &mut ValueStream<L, D>) {
+        let slot = input_stream.read_value::<U64Variable>();
+        let proposer_id = input_stream.read_value::<U32Variable>();
+        let filter = input_stream.read_value::<BoolVariable>();
+        if filter {
+            let rpc_url = env::var("CONSENSUS_RPC_1").unwrap();
+            let endpoint = format!(
+                "{}/api/integrations/nouns/push/{}/{}",
+                rpc_url, slot, proposer_id
+            );
+            let client = Client::new();
+            let response = client
+                .post(endpoint)
+                .timeout(Duration::new(60, 0))
+                .send()
+                .unwrap();
+            if response.status() != 200 {
+                panic!("failed to push nouns graffiti");
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NounsGraffitiPullHint;
+
+impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for NounsGraffitiPullHint {
     fn hint(&self, input_stream: &mut ValueStream<L, D>, output_stream: &mut ValueStream<L, D>) {
-        let start_slot = input_stream.read_value::<U64Variable>();
-        let end_slot = input_stream.read_value::<U64Variable>();
-        let target_slot = input_stream.read_value::<U64Variable>();
-        let endpoint = "https://dh0fmtfea73zh.cloudfront.net/slots";
-        debug!("fetching nouns graffiti from {}", endpoint);
+        let _ = input_stream.read_value::<Bytes32Variable>();
+        let rpc_url = env::var("CONSENSUS_RPC_1").unwrap();
+        let endpoint = format!("{}/api/integrations/nouns/pull", rpc_url);
         let client = Client::new();
-        let response: Vec<NounsGraffiti> = client
+        let mut proposer_ids: Vec<u32> = client
             .get(endpoint)
-            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
             .timeout(Duration::new(60, 0))
             .send()
             .unwrap()
             .json()
             .unwrap();
-        let mut nouns_graffitis = response;
-        nouns_graffitis = nouns_graffitis
-            .into_iter()
-            .filter(|n| {
-                start_slot <= n.slot
-                    && n.slot < end_slot
-                    && (target_slot - NB_BLOCKS as u64) < n.slot
-                    && n.block.is_some()
-            })
-            .collect_vec();
-
-        let mut filtered_nouns_graffitis = Vec::new();
-        let beacon = BeaconClient::new("https://beaconapi.succinct.xyz".to_string());
-        for i in 0..nouns_graffitis.len() {
-            match beacon.get_header(nouns_graffitis[i].slot.to_string()) {
-                Ok(_) => {
-                    filtered_nouns_graffitis.push(nouns_graffitis[i].clone());
-                }
-                Err(_) => {
-                    continue;
-                }
-            }
-        }
-
-        let mut proposer_ids = filtered_nouns_graffitis
-            .iter()
-            .map(|n| n.proposer_id as u32)
-            .collect_vec();
         assert!(proposer_ids.len() < NB_MAX_PROPOSERS);
         debug!("nouns graffiti proposer ids: {:?}", proposer_ids);
         proposer_ids.resize(NB_MAX_PROPOSERS, 0);

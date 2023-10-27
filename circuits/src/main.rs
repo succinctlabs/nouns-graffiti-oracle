@@ -1,7 +1,7 @@
 //! Nouns Graffiti Oracle.
 #![allow(clippy::needless_range_loop)]
 
-use hints::{NounsGraffitiProposerCheckHint, NounsGraffitiProposersHint};
+use hints::{NounsGraffitiPullHint, NounsGraffitiPushHint, NounsGraffitiResetHint};
 use itertools::Itertools;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2x::backend::circuit::{Circuit, PlonkParameters};
@@ -13,9 +13,7 @@ use plonky2x::frontend::extension::CubicExtensionVariable;
 use plonky2x::frontend::mapreduce::generator::MapReduceGenerator;
 use plonky2x::frontend::uint::uint64::U64Variable;
 use plonky2x::frontend::vars::{SSZVariable, U32Variable, VariableStream};
-use plonky2x::prelude::{
-    ArrayVariable, BoolVariable, Bytes32Variable, BytesVariable, CircuitBuilder,
-};
+use plonky2x::prelude::{ArrayVariable, Bytes32Variable, BytesVariable, CircuitBuilder};
 use plonky2x::utils::{bytes, bytes32};
 
 mod hints;
@@ -73,6 +71,11 @@ impl Circuit for NounsGraffitiOracle {
 
         // Get the target block root from the source block root.
         let target_block_root = builder.beacon_get_historical_block(block_root, target_slot);
+
+        // Reset the filtered proposer index cache.
+        let mut input_stream = VariableStream::new();
+        input_stream.write(&block_root);
+        builder.hint(input_stream, NounsGraffitiResetHint {});
 
         // Compute the filtered accumulator by iterating over the previous `NB_BLOCKS` block roots.
         let offsets = (0..NB_BLOCKS).map(|i| i as u64).collect_vec();
@@ -144,17 +147,12 @@ impl Circuit for NounsGraffitiOracle {
                     let filtered_term = builder.select(filter, term, one);
                     filtered_acc = builder.mul(filtered_acc, filtered_term);
 
-                    // Sanity check.
+                    // Push the value to the filtered proposer index cache.
                     let mut input_stream = VariableStream::new();
-                    input_stream.write(&start_slot);
-                    input_stream.write(&end_slot);
                     input_stream.write(&header.slot);
                     input_stream.write(&proposer_index);
-                    input_stream.write(&goggles_found);
-                    input_stream.write(&within_range);
                     input_stream.write(&filter);
-                    let output = builder.hint(input_stream, NounsGraffitiProposerCheckHint {});
-                    output.read::<BoolVariable>(builder);
+                    builder.hint(input_stream, NounsGraffitiPushHint {});
                 }
 
                 // Return the auxiliary information needed during the reduce step.
@@ -179,10 +177,8 @@ impl Circuit for NounsGraffitiOracle {
 
         // Witness the set of proposers.
         let mut input_stream = VariableStream::new();
-        input_stream.write(&start_slot);
-        input_stream.write(&end_slot);
-        input_stream.write(&target_slot);
-        let output = builder.hint(input_stream, NounsGraffitiProposersHint {});
+        input_stream.write(&result.1);
+        let output = builder.hint(input_stream, NounsGraffitiPullHint {});
         let proposer_ids = output.read::<ArrayVariable<U32Variable, NB_MAX_PROPOSERS>>(builder);
         builder.watch(&proposer_ids, "witnessed_proposer_ids");
 
@@ -238,8 +234,9 @@ impl Circuit for NounsGraffitiOracle {
                 generator_id,
             );
         registry.register_hint::<RandomPermutationHint<NB_MAX_PROPOSERS>>();
-        registry.register_hint::<NounsGraffitiProposersHint>();
-        registry.register_hint::<NounsGraffitiProposerCheckHint>();
+        registry.register_hint::<NounsGraffitiResetHint>();
+        registry.register_hint::<NounsGraffitiPushHint>();
+        registry.register_hint::<NounsGraffitiPullHint>();
         let id = MapReduceGenerator::<
             L,
             (
@@ -305,7 +302,7 @@ mod tests {
     #[test]
     fn test_circuit() {
         env::set_var("RUST_LOG", "debug");
-        env::set_var("CONSENSUS_RPC_1", "https://beaconapi.succinct.xyz");
+        env::set_var("CONSENSUS_RPC_1", "http://localhost:3000");
         env_logger::try_init().unwrap_or_default();
 
         let mut builder = CircuitBuilder::<L, D>::new();
