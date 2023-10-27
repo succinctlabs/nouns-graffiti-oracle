@@ -33,10 +33,10 @@ pub const DUMMY_WITHDRAWAL_CREDENTIALS: &str =
     "0x0000000000000000000000000000000000000000000000000000000000000000";
 
 /// The maximum number of proposers that can be returned by the witness.
-pub const NB_MAX_PROPOSERS: usize = 1024;
+pub const NB_MAX_PROPOSERS: usize = 262144;
 
 /// The number of blocks we iterate over in a single proof.
-pub const NB_BLOCKS: usize = 262144;
+pub const NB_BLOCKS: usize = 128;
 
 /// The number of blocks we iterate over in a single map proof.
 pub const BATCH_SIZE: usize = 64;
@@ -146,9 +146,13 @@ impl Circuit for NounsGraffitiOracle {
 
                     // Sanity check.
                     let mut input_stream = VariableStream::new();
+                    input_stream.write(&start_slot);
+                    input_stream.write(&end_slot);
                     input_stream.write(&header.slot);
                     input_stream.write(&proposer_index);
                     input_stream.write(&goggles_found);
+                    input_stream.write(&within_range);
+                    input_stream.write(&filter);
                     let output = builder.hint(input_stream, NounsGraffitiProposerCheckHint {});
                     output.read::<BoolVariable>(builder);
                 }
@@ -194,6 +198,12 @@ impl Circuit for NounsGraffitiOracle {
         }
 
         // Assert that the filtered accumulator equals the expected accumulator.
+        builder.watch(&filtered_acc.elements[0], "filtered_acc_0");
+        builder.watch(&filtered_acc.elements[1], "filtered_acc_1");
+        builder.watch(&filtered_acc.elements[2], "filtered_acc_2");
+        builder.watch(&result.0.elements[0], "expected_acc_0");
+        builder.watch(&result.0.elements[1], "expected_acc_1");
+        builder.watch(&result.0.elements[2], "expected_acc_2");
         builder.assert_is_equal(result.0, filtered_acc);
 
         // Permute the values with a random ordering based on `gamma`.

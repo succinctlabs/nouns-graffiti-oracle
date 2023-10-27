@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use itertools::Itertools;
-use log::debug;
+use log::{debug, info};
 use plonky2x::frontend::hint::simple::hint::Hint;
 use plonky2x::frontend::uint::uint64::U64Variable;
 use plonky2x::frontend::vars::{U32Variable, ValueStream};
@@ -28,9 +28,18 @@ struct NounsGraffiti {
 pub struct NounsGraffitiProposerCheckHint;
 impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for NounsGraffitiProposerCheckHint {
     fn hint(&self, input_stream: &mut ValueStream<L, D>, output_stream: &mut ValueStream<L, D>) {
+        let start_slot = input_stream.read_value::<U64Variable>();
+        let end_slot = input_stream.read_value::<U64Variable>();
         let slot = input_stream.read_value::<U64Variable>();
         let proposer_id = input_stream.read_value::<U32Variable>();
         let graffiti_found = input_stream.read_value::<BoolVariable>();
+        let within_range = input_stream.read_value::<BoolVariable>();
+        let filter = input_stream.read_value::<BoolVariable>();
+
+        if filter {
+            info!("ACCUMULATING PROPOSER ID {} FOR SLOT {}", proposer_id, slot);
+        }
+
         let endpoint = "https://dh0fmtfea73zh.cloudfront.net/slots";
         debug!("fetching nouns graffiti from {}", endpoint);
         let client = Client::new();
@@ -56,6 +65,8 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for NounsGraffitiProposer
         if graffiti_found != sanity {
             panic!("graffiti found mismatch for {} and {}", slot, proposer_id);
         }
+        let within_range_ans = start_slot <= slot && slot < end_slot;
+        assert_eq!(within_range, within_range_ans, "within range mismatch");
     }
 }
 
