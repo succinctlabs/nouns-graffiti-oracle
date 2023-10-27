@@ -82,7 +82,7 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for NounsGraffitiPullHint
         let endpoint = format!("{}/api/integrations/nouns/pull", rpc_url);
         let client = Client::new();
         let mut proposer_ids: Vec<u32> = client
-            .get(endpoint)
+            .post(endpoint)
             .timeout(Duration::new(60, 0))
             .send()
             .unwrap()
