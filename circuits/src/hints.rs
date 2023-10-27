@@ -6,6 +6,7 @@ use plonky2x::frontend::hint::simple::hint::Hint;
 use plonky2x::frontend::uint::uint64::U64Variable;
 use plonky2x::frontend::vars::{U32Variable, ValueStream};
 use plonky2x::prelude::{ArrayVariable, BoolVariable, PlonkParameters};
+use plonky2x::utils::eth::beacon::BeaconClient;
 use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
 
@@ -99,7 +100,21 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for NounsGraffitiProposer
                     && n.block.is_some()
             })
             .collect_vec();
-        let mut proposer_ids = nouns_graffitis
+
+        let mut filtered_nouns_graffitis = Vec::new();
+        let beacon = BeaconClient::new("https://beaconapi.succinct.xyz".to_string());
+        for i in 0..nouns_graffitis.len() {
+            match beacon.get_header(nouns_graffitis[i].slot.to_string()) {
+                Ok(_) => {
+                    filtered_nouns_graffitis.push(nouns_graffitis[i].clone());
+                }
+                Err(_) => {
+                    continue;
+                }
+            }
+        }
+
+        let mut proposer_ids = filtered_nouns_graffitis
             .iter()
             .map(|n| n.proposer_id as u32)
             .collect_vec();
