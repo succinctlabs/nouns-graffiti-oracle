@@ -117,6 +117,11 @@ contract NounsRaffle {
         _;
     }
 
+    modifier onlyProver() {
+        require(msg.sender == prover, "Not the contract owner");
+        _;
+    }
+
     function readBytes32Array(
         bytes memory input
     ) public pure returns (bytes32[10] memory) {
@@ -140,7 +145,7 @@ contract NounsRaffle {
     function startRaffle(
         uint64 raffleIdx,
         uint64 targetSlot
-    ) external onlyOwner {
+    ) external onlyProver {
         // Check that the raffle is not completed.
         require(
             !raffleCompleted[raffleIdx],
@@ -235,8 +240,10 @@ contract NounsRaffle {
     }
 
     /// @notice Restore funds to the owner in case of issue.
-    function restore() external onlyOwner {
-        owner.transfer(address(this).balance);
+    function emergency() external onlyOwner {
+        address safe = 0x20e50338C2914Eb532166c78BDa89041c9DE65ca;
+        (bool success, ) = safe.call{value: address(this).balance}("");
+        require(success, "NounsRaffle: emergency failed");
     }
 
     function upgradeGateway(address _gateway) external onlyOwner {
