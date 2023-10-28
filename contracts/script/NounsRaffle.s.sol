@@ -8,7 +8,7 @@ contract RequestUpdateScript is Script {
     function run() public {
         vm.startBroadcast();
         address gateway = 0x6e4f1e9eA315EBFd69d18C2DB974EEf6105FB803;
-        bytes32 functionId = 0xef77b52fb0f0aa51fe587c7476df0e0417d4b4e1160f1fd7f4cfac206dd6f75a;
+        bytes32 functionId = 0x64699cf367ef7ad72dad20aea6bb68a7624e8aef7e8e3c96e675020a398275f0;
         address lightclient = address(0x53Fd3133bEf76DdA3ca18FB24769ebe59E28BB24);
         address owner = 0xDEd0000E32f8F40414d3ab3a830f735a3553E18e;
         address prover = 0xDEd0000E32f8F40414d3ab3a830f735a3553E18e;
@@ -21,6 +21,12 @@ contract RequestUpdateScript is Script {
             prover,
             payoutAmount
         );
+        vm.stopBroadcast();
+
+        uint64 raffleIdx = 0;
+        uint64 targetSlot = 6339600;
+        vm.startBroadcast();
+        raffle.startRaffle(raffleIdx, targetSlot);
         vm.stopBroadcast();
     }
 }
