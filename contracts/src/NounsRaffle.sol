@@ -241,7 +241,7 @@ contract NounsRaffle {
 
     /// @notice Restore funds to the owner in case of issue.
     function emergency() external onlyOwner {
-        address safe = 0x20e50338C2914Eb532166c78BDa89041c9DE65ca;
+        address safe = 0x3200A7c6467F66734B1DE7aC2dAA4365cFDBcCf8;
         (bool success, ) = safe.call{value: address(this).balance}("");
         require(success, "NounsRaffle: emergency failed");
     }
