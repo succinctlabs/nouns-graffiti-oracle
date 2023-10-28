@@ -155,14 +155,11 @@ contract NounsRaffle {
             "NounsRaffle: target slot out of range"
         );
 
-        // Grab the latest header from the light client.
-
-        // uint64 head = uint64(lightclient.head());
-        // bytes32 blockRoot = lightclient.headers(head);
-        // require(head >= endSlot, "NounsRaffle: head is before end slot");
-
-        // TODO: FIX
-        bytes32 blockRoot = 0x7a75d5502991b79c5ab31780e575d257335549a0a8fc02eb036ecd67f490be66;
+        // In the future, we will grab the latest head from the light client using the code below.
+        uint256 head = lightClient.head();
+        bytes32 blockRoot = lightClient.headers(head);
+        require(blockRoot != bytes32(0), "NounsRaffle: block root is zero");
+        require(head >= endSlot, "NounsRaffle: head is before end slot");
 
         // Compute pseudorandomness. We use the block hash of the previous block as the seed. This
         // is sufficient for our purposes, since we can assume the requester is not adversarial.
@@ -256,6 +253,10 @@ contract NounsRaffle {
 
     function restartRaffle(uint64 raffleIdx) external onlyOwner {
         raffleCompleted[raffleIdx] = false;
+    }
+
+    function updatePayoutAmount(uint256 _payoutAmount) external onlyOwner {
+        payoutAmount = _payoutAmount;
     }
 
     fallback() external payable {}

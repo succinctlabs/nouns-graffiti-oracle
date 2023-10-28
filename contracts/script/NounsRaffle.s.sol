@@ -7,11 +7,11 @@ import "../src/NounsRaffle.sol";
 contract RequestUpdateScript is Script {
     function run() public {
         vm.startBroadcast();
-        address gateway = 0xE304f6B116bE5e43424cEC36a5eFd0B642E0dC95;
-        bytes32 functionId = 0x8126a7e40f00a6ead93325f6b13a576083c06d291cf13e54c59b9808afb13b18;
-        address lightclient = address(0);
+        address gateway = 0x6e4f1e9eA315EBFd69d18C2DB974EEf6105FB803;
+        bytes32 functionId = 0xef77b52fb0f0aa51fe587c7476df0e0417d4b4e1160f1fd7f4cfac206dd6f75a;
+        address lightclient = address(0x53Fd3133bEf76DdA3ca18FB24769ebe59E28BB24);
         address owner = 0xDEd0000E32f8F40414d3ab3a830f735a3553E18e;
-        address prover = owner;
+        address prover = 0xDEd0000E32f8F40414d3ab3a830f735a3553E18e;
         uint256 payoutAmount = 0;
         NounsRaffle raffle = new NounsRaffle(
             gateway,
@@ -21,11 +21,6 @@ contract RequestUpdateScript is Script {
             prover,
             payoutAmount
         );
-        vm.stopBroadcast();
-        uint64 raffleIdx = 2;
-        uint64 targetSlot = 6778799;
-        vm.startBroadcast();
-        raffle.startRaffle(raffleIdx, targetSlot);
         vm.stopBroadcast();
     }
 }
