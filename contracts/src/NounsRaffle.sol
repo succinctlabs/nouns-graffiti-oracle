@@ -60,6 +60,9 @@ contract NounsRaffle {
     /// @notice Whether the n'th raffle is completed.
     mapping(uint64 => bool) public raffleCompleted;
 
+    /// @notice The reentrancy status of the contract.
+    bool internal locked;
+
     /// @notice The raffle bounds.
     uint64[19] public raffleBounds = [
         6123599,
@@ -118,8 +121,15 @@ contract NounsRaffle {
     }
 
     modifier onlyProver() {
-        require(msg.sender == prover, "Not the contract owner");
+        require(msg.sender == prover, "Not the contract prover");
         _;
+    }
+
+    modifier noReentrant() {
+        require(!locked, "No re-entrancy");
+        locked = true;
+        _;
+        locked = false;
     }
 
     function readBytes32Array(
@@ -200,7 +210,7 @@ contract NounsRaffle {
         emit RaffleRequest(raffleIdx);
     }
 
-    function endRaffle(bytes memory output, bytes memory context) public {
+    function endRaffle(bytes memory output, bytes memory context) public noReentrant {
         // Check that the callback is coming from the gateway.
         require(
             tx.origin == prover,
