@@ -138,16 +138,16 @@ contract NounsRaffle {
         require(input.length == 320, "Input must be 320 bytes in length");
         bytes32[10] memory output;
         assembly {
-            mstore(add(output, 32), mload(add(input, 32)))
-            mstore(add(output, 64), mload(add(input, 64)))
-            mstore(add(output, 96), mload(add(input, 96)))
-            mstore(add(output, 128), mload(add(input, 128)))
-            mstore(add(output, 160), mload(add(input, 160)))
-            mstore(add(output, 192), mload(add(input, 192)))
-            mstore(add(output, 224), mload(add(input, 224)))
-            mstore(add(output, 256), mload(add(input, 256)))
-            mstore(add(output, 288), mload(add(input, 288)))
-            mstore(add(output, 320), mload(add(input, 320)))
+            mstore(add(output, 0), mload(add(input, 32)))
+            mstore(add(output, 32), mload(add(input, 64)))
+            mstore(add(output, 64), mload(add(input, 96)))
+            mstore(add(output, 96), mload(add(input, 128)))
+            mstore(add(output, 128), mload(add(input, 160)))
+            mstore(add(output, 160), mload(add(input, 192)))
+            mstore(add(output, 192), mload(add(input, 224)))
+            mstore(add(output, 224), mload(add(input, 256)))
+            mstore(add(output, 256), mload(add(input, 288)))
+            mstore(add(output, 288), mload(add(input, 320)))
         }
         return output;
     }
@@ -210,7 +210,10 @@ contract NounsRaffle {
         emit RaffleRequest(raffleIdx);
     }
 
-    function endRaffle(bytes memory output, bytes memory context) public noReentrant {
+    function endRaffle(
+        bytes memory output,
+        bytes memory context
+    ) public noReentrant {
         // Check that the callback is coming from the gateway.
         require(
             tx.origin == prover,
@@ -229,6 +232,10 @@ contract NounsRaffle {
         bytes32[10] memory winners = readBytes32Array(output);
 
         // Distribute funds.
+        require(
+            winners.length * payoutAmount <= address(this).balance,
+            "NounsRaffle: not enough funds"
+        );
         for (uint256 i = 0; i < winners.length; i++) {
             bytes20 withdrawalAddressBytes = bytes20(winners[i] << 96);
             address withdrawalAddress = address(

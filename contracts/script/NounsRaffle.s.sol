@@ -22,11 +22,10 @@ contract RequestUpdateScript is Script {
             payoutAmount
         );
         vm.stopBroadcast();
-
-        uint64 raffleIdx = 0;
-        uint64 targetSlot = 6339600;
-        vm.startBroadcast();
-        raffle.startRaffle(raffleIdx, targetSlot);
-        vm.stopBroadcast();
+        // uint64 raffleIdx = 0;
+        // uint64 targetSlot = 6339600;
+        // vm.startBroadcast();
+        // raffle.startRaffle(raffleIdx, targetSlot);
+        // vm.stopBroadcast();
     }
 }
