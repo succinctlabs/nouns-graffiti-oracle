@@ -30,8 +30,8 @@ pub const DUMMY_PROPOSER_ID: u64 = 0;
 pub const DUMMY_WITHDRAWAL_CREDENTIALS: &str =
     "0x0000000000000000000000000000000000000000000000000000000000000000";
 
-/// The maximum number of proposers that can be returned by the witness.
-pub const NB_MAX_PROPOSERS: usize = 1024;
+/// The maximum number of valid ⌐◨-◨ slots that can be returned by the witness.
+pub const NB_MAX_SLOTS: usize = 2048;
 
 /// The number of blocks we iterate over in a single proof.
 pub const NB_BLOCKS: usize = 262144;
@@ -52,7 +52,7 @@ impl Circuit for NounsGraffitiOracle {
         let start_slot = builder.evm_read::<U64Variable>();
         let end_slot = builder.evm_read::<U64Variable>();
         let target_slot = builder.evm_read::<U64Variable>();
-        let block_root = builder.evm_read::<Bytes32Variable>();
+        let source_block_root = builder.evm_read::<Bytes32Variable>();
 
         // Read the pseudorandom challenges from the EVM. Assumes the U64 are in the range
         // [0, 2**64-2**32+1+1). Construct a cubic extension element with ~192 bits of security.
@@ -70,11 +70,11 @@ impl Circuit for NounsGraffitiOracle {
         builder.assert_is_equal(target_gte_end, t);
 
         // Get the target block root from the source block root.
-        let target_block_root = builder.beacon_get_historical_block(block_root, target_slot);
+        let target_block_root = builder.beacon_get_historical_block(source_block_root, target_slot);
 
         // Reset the filtered proposer index cache.
         let mut input_stream = VariableStream::new();
-        input_stream.write(&block_root);
+        input_stream.write(&source_block_root);
         builder.hint(input_stream, NounsGraffitiResetHint {});
 
         // Compute the filtered accumulator by iterating over the previous `NB_BLOCKS` block roots.
@@ -120,7 +120,6 @@ impl Circuit for NounsGraffitiOracle {
                 let mut filtered_acc = builder.one::<CubicExtensionVariable>();
                 for i in 0..headers.len() {
                     let header = headers[i];
-                    let proposer_index = header.proposer_index.limbs[0];
 
                     // Get the graffiti and check if it contains ⌐◨-◨.
                     let goggles = builder.constant::<BytesVariable<10>>(bytes!(NOGGLES_GRAFFITI));
@@ -140,8 +139,10 @@ impl Circuit for NounsGraffitiOracle {
                     // Accumulate the proposer index if the goggles exist is in the range of
                     // `start_slot` and `end_slot`.
                     let one = builder.one::<CubicExtensionVariable>();
-                    let proposer_index_extension = proposer_index.0.as_cubic_extension(builder);
-                    let term = builder.sub(gamma, proposer_index_extension);
+                    // Slot will be less than 2**32.
+                    let slot = header.slot.limbs[0];
+                    let slot_extension = slot.0.as_cubic_extension(builder);
+                    let term = builder.sub(gamma, slot_extension);
                     let within_range = builder.within_range(header.slot, start_slot, end_slot);
                     let filter = builder.and(within_range, goggles_found);
                     let filtered_term = builder.select(filter, term, one);
@@ -150,7 +151,6 @@ impl Circuit for NounsGraffitiOracle {
                     // Push the value to the filtered proposer index cache.
                     let mut input_stream = VariableStream::new();
                     input_stream.write(&header.slot);
-                    input_stream.write(&proposer_index);
                     input_stream.write(&filter);
                     builder.hint(input_stream, NounsGraffitiPushHint {});
                 }
@@ -179,16 +179,16 @@ impl Circuit for NounsGraffitiOracle {
         let mut input_stream = VariableStream::new();
         input_stream.write(&result.1);
         let output = builder.hint(input_stream, NounsGraffitiPullHint {});
-        let proposer_ids = output.read::<ArrayVariable<U32Variable, NB_MAX_PROPOSERS>>(builder);
-        builder.watch(&proposer_ids, "witnessed_proposer_ids");
+        let slots = output.read::<ArrayVariable<U32Variable, NB_MAX_SLOTS>>(builder);
+        builder.watch(&slots, "witnessed_slots");
 
         // Recompute the filtered accumulator and assert that it equals the expected accumulator.
         let dummy = builder.constant::<U32Variable>(DUMMY_PROPOSER_ID as u32);
         let mut filtered_acc = builder.one::<CubicExtensionVariable>();
-        for i in 0..proposer_ids.len() {
-            let is_dummy = builder.is_equal(proposer_ids[i], dummy);
-            let proposer_index_extension = proposer_ids[i].0.as_cubic_extension(builder);
-            let term = builder.sub(gamma, proposer_index_extension);
+        for i in 0..slots.len() {
+            let is_dummy = builder.is_equal(slots[i], dummy);
+            let slot_extension = slots[i].0.as_cubic_extension(builder);
+            let term = builder.sub(gamma, slot_extension);
             let acc = builder.mul(filtered_acc, term);
             filtered_acc = builder.select(is_dummy, filtered_acc, acc);
         }
@@ -203,18 +203,22 @@ impl Circuit for NounsGraffitiOracle {
         builder.assert_is_equal(result.0, filtered_acc);
 
         // Permute the values with a random ordering based on `gamma`.
-        let permuted_proposers = builder.permute_with_dummy(proposer_ids, dummy, gamma, seed);
+        let permuted_slots = builder.permute_with_dummy(slots, dummy, gamma, seed);
 
         // Return the first N validators.
-        let validators = builder.beacon_get_validators(block_root);
+        let validators = builder.beacon_get_validators(source_block_root);
         let dummy_withdrawal_credentials =
             builder.constant::<Bytes32Variable>(bytes32!(DUMMY_WITHDRAWAL_CREDENTIALS));
         for i in 0..NB_WINNERS {
-            let proposer_id_u64 = permuted_proposers[i].to_u64(builder);
-            let validator = builder.beacon_get_validator(validators, proposer_id_u64);
-            let is_dummy_proposer = builder.is_equal(permuted_proposers[i], dummy);
+            let target_slot_u64 = permuted_slots[i].to_u64(builder);
+            let target_block_root =
+                builder.beacon_get_historical_block(source_block_root, target_slot_u64);
+            let header = builder.beacon_get_block_header(target_block_root);
+
+            let validator = builder.beacon_get_validator(validators, header.proposer_index);
+            let is_dummy_slot = builder.is_equal(permuted_slots[i], dummy);
             let withdrawal_credentials = builder.select(
-                is_dummy_proposer,
+                is_dummy_slot,
                 dummy_withdrawal_credentials,
                 validator.withdrawal_credentials,
             );
@@ -227,13 +231,11 @@ impl Circuit for NounsGraffitiOracle {
     ) where
         <<L as PlonkParameters<D>>::Config as GenericConfig<D>>::Hasher: AlgebraicHasher<L::Field>,
     {
-        let generator_id =
-            WatchGenerator::<L, D, ArrayVariable<U32Variable, NB_MAX_PROPOSERS>>::id();
-        registry
-            .register_simple::<WatchGenerator<L, D, ArrayVariable<U32Variable, NB_MAX_PROPOSERS>>>(
-                generator_id,
-            );
-        registry.register_hint::<RandomPermutationHint<NB_MAX_PROPOSERS>>();
+        let generator_id = WatchGenerator::<L, D, ArrayVariable<U32Variable, NB_MAX_SLOTS>>::id();
+        registry.register_simple::<WatchGenerator<L, D, ArrayVariable<U32Variable, NB_MAX_SLOTS>>>(
+            generator_id,
+        );
+        registry.register_hint::<RandomPermutationHint<NB_MAX_SLOTS>>();
         registry.register_hint::<NounsGraffitiResetHint>();
         registry.register_hint::<NounsGraffitiPushHint>();
         registry.register_hint::<NounsGraffitiPullHint>();
