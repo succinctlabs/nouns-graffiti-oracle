@@ -24,8 +24,8 @@ struct NounsGraffitiOracle;
 /// The noggles graffiti ("⌐◨-◨") encoded in bytes.
 pub const NOGGLES_GRAFFITI: &str = "0xe28c90e297a82de297a8";
 
-/// The proposer id used to represent a none vaue.
-pub const DUMMY_PROPOSER_ID: u64 = 0;
+/// The slot used to represent a none value.
+pub const DUMMY_SLOT: u64 = 0;
 
 pub const DUMMY_WITHDRAWAL_CREDENTIALS: &str =
     "0x0000000000000000000000000000000000000000000000000000000000000000";
@@ -72,7 +72,7 @@ impl Circuit for NounsGraffitiOracle {
         // Get the target block root from the source block root.
         let target_block_root = builder.beacon_get_historical_block(source_block_root, target_slot);
 
-        // Reset the filtered proposer index cache.
+        // Reset the filtered slot cache.
         let mut input_stream = VariableStream::new();
         input_stream.write(&source_block_root);
         builder.hint(input_stream, NounsGraffitiResetHint {});
@@ -116,7 +116,7 @@ impl Circuit for NounsGraffitiOracle {
                     headers.push(header);
                 }
 
-                // Compute the filtered accumulator of proposers with noggles graffiti.
+                // Compute the filtered accumulator of slots with noggles graffiti.
                 let mut filtered_acc = builder.one::<CubicExtensionVariable>();
                 for i in 0..headers.len() {
                     let header = headers[i];
@@ -136,7 +136,7 @@ impl Circuit for NounsGraffitiOracle {
                         goggles_found = builder.or(found, goggles_found);
                     }
 
-                    // Accumulate the proposer index if the goggles exist is in the range of
+                    // Accumulate the slot if the noggles exist AND the slot is in the range of
                     // `start_slot` and `end_slot`.
                     let one = builder.one::<CubicExtensionVariable>();
                     // Slot will be less than 2**32.
@@ -148,7 +148,7 @@ impl Circuit for NounsGraffitiOracle {
                     let filtered_term = builder.select(filter, term, one);
                     filtered_acc = builder.mul(filtered_acc, filtered_term);
 
-                    // Push the value to the filtered proposer index cache.
+                    // Push the value to the filtered slots cache.
                     let mut input_stream = VariableStream::new();
                     input_stream.write(&header.slot);
                     input_stream.write(&filter);
@@ -175,7 +175,7 @@ impl Circuit for NounsGraffitiOracle {
             },
         );
 
-        // Witness the set of proposers.
+        // Witness the set of slots.
         let mut input_stream = VariableStream::new();
         input_stream.write(&result.1);
         let output = builder.hint(input_stream, NounsGraffitiPullHint {});
@@ -183,7 +183,7 @@ impl Circuit for NounsGraffitiOracle {
         builder.watch(&slots, "witnessed_slots");
 
         // Recompute the filtered accumulator and assert that it equals the expected accumulator.
-        let dummy = builder.constant::<U32Variable>(DUMMY_PROPOSER_ID as u32);
+        let dummy = builder.constant::<U32Variable>(DUMMY_SLOT as u32);
         let mut filtered_acc = builder.one::<CubicExtensionVariable>();
         for i in 0..slots.len() {
             let is_dummy = builder.is_equal(slots[i], dummy);
