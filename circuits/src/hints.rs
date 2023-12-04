@@ -9,7 +9,7 @@ use plonky2x::prelude::{ArrayVariable, BoolVariable, Bytes32Variable, PlonkParam
 use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
 
-use crate::NB_MAX_PROPOSERS;
+use crate::NB_MAX_SLOTS;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -51,14 +51,10 @@ pub struct NounsGraffitiPushHint;
 impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for NounsGraffitiPushHint {
     fn hint(&self, input_stream: &mut ValueStream<L, D>, _: &mut ValueStream<L, D>) {
         let slot = input_stream.read_value::<U64Variable>();
-        let proposer_id = input_stream.read_value::<U32Variable>();
         let filter = input_stream.read_value::<BoolVariable>();
         if filter {
             let rpc_url = env::var("CONSENSUS_RPC_1").unwrap();
-            let endpoint = format!(
-                "{}/api/integrations/nouns/push/{}/{}",
-                rpc_url, slot, proposer_id
-            );
+            let endpoint = format!("{}/api/integrations/nouns/push/{}", rpc_url, slot);
             let client = Client::new();
             let response = client
                 .post(endpoint)
@@ -81,16 +77,16 @@ impl<L: PlonkParameters<D>, const D: usize> Hint<L, D> for NounsGraffitiPullHint
         let rpc_url = env::var("CONSENSUS_RPC_1").unwrap();
         let endpoint = format!("{}/api/integrations/nouns/pull", rpc_url);
         let client = Client::new();
-        let mut proposer_ids: Vec<u32> = client
+        let mut slots: Vec<u32> = client
             .post(endpoint)
             .timeout(Duration::new(60, 0))
             .send()
             .unwrap()
             .json()
             .unwrap();
-        assert!(proposer_ids.len() < NB_MAX_PROPOSERS);
-        debug!("nouns graffiti proposer ids: {:?}", proposer_ids);
-        proposer_ids.resize(NB_MAX_PROPOSERS, 0);
-        output_stream.write_value::<ArrayVariable<U32Variable, NB_MAX_PROPOSERS>>(proposer_ids);
+        assert!(slots.len() < NB_MAX_SLOTS);
+        debug!("nouns graffiti proposer slots: {:?}", slots);
+        slots.resize(NB_MAX_SLOTS, 0);
+        output_stream.write_value::<ArrayVariable<U32Variable, NB_MAX_SLOTS>>(slots);
     }
 }
